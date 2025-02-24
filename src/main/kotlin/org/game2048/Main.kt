@@ -27,7 +27,17 @@ import androidx.compose.animation.core.*
 import androidx.compose.animation.animateColorAsState
 import kotlinx.coroutines.launch
 import androidx.compose.ui.window.Window
+import androidx.compose.ui.window.WindowState
 import androidx.compose.ui.window.application
+import androidx.compose.ui.unit.DpSize
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.Canvas
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.rotate
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.AnimatedVisibility
 import org.game2048.engine.GameEngine
 import org.game2048.engine.GameEngineImpl
 import org.game2048.model.Board
@@ -35,13 +45,26 @@ import org.game2048.model.GameState
 import org.game2048.model.Move
 
 fun main() = application {
+    val windowState = remember {
+        WindowState(
+            size = DpSize(550.dp, 700.dp)
+        )
+    }
+
     Window(
         onCloseRequest = ::exitApplication,
         title = "2048 Game",
-        resizable = false,
+        state = windowState,
+        resizable = true,
         transparent = false
     ) {
-        Game()
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .sizeIn(minWidth = 400.dp, minHeight = 500.dp)
+        ) {
+            Game()
+        }
     }
 }
 
@@ -158,12 +181,23 @@ fun GameBoard(
     onMove: (Move) -> Unit
 ) {
     val focusRequester = remember { FocusRequester() }
+    var lastMove by remember { mutableStateOf<Move?>(null) }
+    var showArrow by remember { mutableStateOf(false) }
+    var lastKeyPressed by remember { mutableStateOf<String?>(null) }
+    var showKeyOverlay by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
 
     LaunchedEffect(Unit) {
         focusRequester.requestFocus()
     }
 
     var isFocused by remember { mutableStateOf(false) }
+
+    val keyOverlayAlpha by animateFloatAsState(
+        targetValue = if (showKeyOverlay) 1f else 0f,
+        animationSpec = tween(300),
+        finishedListener = { if (!showKeyOverlay) lastKeyPressed = null }
+    )
 
     val borderAlpha by animateFloatAsState(
         targetValue = if (isFocused) 1f else 0f,
@@ -177,7 +211,8 @@ fun GameBoard(
 
     Box(
         modifier = Modifier
-            .width(400.dp)
+            .fillMaxWidth(0.85f)
+            .padding(8.dp)
             .aspectRatio(1f)
             .background(Color(0xFFBBADA0), RoundedCornerShape(6.dp))
             .border(
@@ -191,29 +226,65 @@ fun GameBoard(
             .onFocusChanged { isFocused = it.isFocused }
             .onKeyEvent { event ->
                 if (event.type == KeyEventType.KeyDown) {
-                    when (event.key) {
-                        Key.DirectionLeft, Key.A -> {
-                            onMove(Move.LEFT)
-                            true
-                        }
-                        Key.DirectionRight, Key.D -> {
-                            onMove(Move.RIGHT)
-                            true
-                        }
-                        Key.DirectionUp, Key.W -> {
-                            onMove(Move.UP)
-                            true
-                        }
-                        Key.DirectionDown, Key.S -> {
-                            onMove(Move.DOWN)
-                            true
-                        }
-                        else -> false
+                    val move = when (event.key) {
+                        Key.DirectionLeft, Key.A -> Move.LEFT
+                        Key.DirectionRight, Key.D -> Move.RIGHT
+                        Key.DirectionUp, Key.W -> Move.UP
+                        Key.DirectionDown, Key.S -> Move.DOWN
+                        else -> null
                     }
+
+                    if (move != null) {
+                        lastMove = move
+                        showArrow = true
+                        // Update last pressed key
+                        lastKeyPressed = when (event.key) {
+                            Key.DirectionLeft, Key.A -> "←"
+                            Key.DirectionRight, Key.D -> "→"
+                            Key.DirectionUp, Key.W -> "↑"
+                            Key.DirectionDown, Key.S -> "↓"
+                            else -> null
+                        }
+                        showKeyOverlay = true
+                        scope.launch {
+                            onMove(move)
+                            kotlinx.coroutines.delay(200)
+                            showArrow = false
+                            showKeyOverlay = false
+                        }
+                        true
+                    } else false
                 } else false
             },
         contentAlignment = Alignment.Center
     ) {
+        // Key overlay
+        if (lastKeyPressed != null) {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(80.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(Color(0xFF776E65).copy(alpha = keyOverlayAlpha * 0.3f))
+                        .border(
+                            width = 2.dp,
+                            color = Color(0xFF776E65).copy(alpha = keyOverlayAlpha * 0.5f),
+                            shape = RoundedCornerShape(12.dp)
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = lastKeyPressed!!,
+                        fontSize = 40.sp,
+                        color = Color.White.copy(alpha = keyOverlayAlpha),
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+        }
         Column(
             modifier = Modifier.fillMaxSize(),
             verticalArrangement = Arrangement.spacedBy(4.dp)
@@ -253,9 +324,9 @@ fun GameTile(
 
     val tileSize = 96.dp // Tile size including padding
     // Animation configuration
-    val moveAnimDuration = 180 // Base duration for movement animation
-    val newTileAnimDuration = 200 // Duration for new tile appearance
-    val mergeAnimDuration = 120 // Duration for merge animation
+    val moveAnimDuration = 45 // Base duration for movement animation (super quick)
+    val newTileAnimDuration = 100 // Duration for new tile appearance
+    val mergeAnimDuration = 60 // Duration for merge animation
     val density = LocalDensity.current
     val tileSizePx = with(density) { tileSize.toPx() }
 
@@ -266,7 +337,7 @@ fun GameTile(
         targetValue = targetOffsetX,
         animationSpec = tween(
             durationMillis = moveAnimDuration,
-            easing = FastOutSlowInEasing
+            easing = LinearEasing // Pure linear for super quick movement
         )
     )
 
@@ -274,7 +345,7 @@ fun GameTile(
         targetValue = targetOffsetY,
         animationSpec = tween(
             durationMillis = moveAnimDuration,
-            easing = FastOutSlowInEasing
+            easing = LinearEasing // Pure linear for super quick movement
         )
     )
 
@@ -285,7 +356,7 @@ fun GameTile(
             targetOffsetY = (previousRow - row) * tileSizePx
 
             // Trigger animation by resetting the offset
-            kotlinx.coroutines.delay(16) // Wait for one frame
+            kotlinx.coroutines.delay(4) // Minimal delay for smoother transition
             targetOffsetX = 0f
             targetOffsetY = 0f
 
@@ -299,9 +370,9 @@ fun GameTile(
             isNew = true
             isMerged = true
             scope.launch {
-                kotlinx.coroutines.delay(moveAnimDuration.toLong())
+                kotlinx.coroutines.delay((moveAnimDuration + 5).toLong()) // Wait for move to complete
                 isNew = false
-                kotlinx.coroutines.delay(mergeAnimDuration.toLong())
+                kotlinx.coroutines.delay(10) // Minimal pause before merge animation
                 isMerged = false
             }
         }
@@ -309,19 +380,19 @@ fun GameTile(
 
     val scale by animateFloatAsState(
         targetValue = when {
-            isMerged -> 1.15f
-            isNew && value > 0 -> 0.2f
+            isMerged -> 1.08f // Very subtle merge animation
+            isNew && value > 0 -> 0.5f // Less dramatic appearance
             else -> 1f
         },
         animationSpec = tween(
             durationMillis = when {
-                isNew -> newTileAnimDuration
+                isNew -> moveAnimDuration + 20 // Slightly longer than move
                 isMerged -> mergeAnimDuration
                 else -> moveAnimDuration
             },
             easing = when {
-                isNew -> EaseOutBack
-                isMerged -> FastOutSlowInEasing
+                isNew -> FastOutSlowInEasing // Smoother appearance
+                isMerged -> FastOutLinearInEasing // Quick merge
                 else -> LinearEasing
             }
         )
@@ -330,8 +401,8 @@ fun GameTile(
     val alpha by animateFloatAsState(
         targetValue = if (value > 0) 1f else 0f,
         animationSpec = tween(
-            durationMillis = newTileAnimDuration,
-            easing = FastOutSlowInEasing
+            durationMillis = moveAnimDuration + 10,
+            easing = FastOutLinearInEasing
         )
     )
 
@@ -435,6 +506,55 @@ fun GameControls(
                 text = "Undo",
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Bold
+            )
+        }
+    }
+}
+
+@Composable
+fun MoveArrow(move: Move, modifier: Modifier = Modifier) {
+    Canvas(modifier = modifier) {
+        val arrowLength = size.minDimension * 0.4f
+        val headLength = arrowLength * 0.3f
+        val headAngle = 35f
+        val strokeWidth = size.minDimension * 0.05f
+
+        rotate(when(move) {
+            Move.UP -> 270f
+            Move.DOWN -> 90f
+            Move.LEFT -> 180f
+            Move.RIGHT -> 0f
+        }) {
+            // Arrow shaft
+            drawLine(
+                color = Color.White.copy(alpha = 0.6f),
+                start = Offset(size.width * 0.3f, size.height * 0.5f),
+                end = Offset(size.width * 0.7f, size.height * 0.5f),
+                strokeWidth = strokeWidth,
+                cap = StrokeCap.Round
+            )
+
+            // Arrow head
+            drawLine(
+                color = Color.White.copy(alpha = 0.6f),
+                start = Offset(size.width * 0.7f, size.height * 0.5f),
+                end = Offset(
+                    size.width * 0.7f - headLength * kotlin.math.cos((180 - headAngle) * Math.PI / 180f).toFloat(),
+                    size.height * 0.5f - headLength * kotlin.math.sin((180 - headAngle) * Math.PI / 180f).toFloat()
+                ),
+                strokeWidth = strokeWidth,
+                cap = StrokeCap.Round
+            )
+
+            drawLine(
+                color = Color.White.copy(alpha = 0.6f),
+                start = Offset(size.width * 0.7f, size.height * 0.5f),
+                end = Offset(
+                    size.width * 0.7f - headLength * kotlin.math.cos((180 + headAngle) * Math.PI / 180f).toFloat(),
+                    size.height * 0.5f - headLength * kotlin.math.sin((180 + headAngle) * Math.PI / 180f).toFloat()
+                ),
+                strokeWidth = strokeWidth,
+                cap = StrokeCap.Round
             )
         }
     }
