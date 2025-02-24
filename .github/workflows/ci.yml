@@ -1,0 +1,53 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up JDK
+      uses: actions/setup-java@v3
+      with:
+        java-version: '21'
+        distribution: 'temurin'
+        
+    - name: Setup Gradle
+      uses: gradle/gradle-build-action@v2
+    
+    - name: Check code style
+      run: ./gradlew ktlintCheck
+    
+    - name: Run detekt
+      run: ./gradlew detekt
+    
+    - name: Build with Gradle
+      run: ./gradlew build
+    
+    - name: Run tests
+      run: ./gradlew test
+    
+    - name: Generate test coverage report
+      run: ./gradlew koverHtmlReport
+    
+    - name: Upload test coverage report
+      uses: actions/upload-artifact@v3
+      with:
+        name: test-coverage-report
+        path: build/reports/kover/html
+    
+    - name: Upload detekt report
+      uses: actions/upload-artifact@v3
+      with:
+        name: detekt-report
+        path: build/reports/detekt
+    
+    - name: Check test coverage
+      run: ./gradlew koverVerify
