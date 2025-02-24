@@ -22,10 +22,9 @@ import androidx.compose.ui.input.key.*
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.animation.core.*
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.tween
 import kotlinx.coroutines.launch
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
@@ -228,6 +227,8 @@ fun GameBoard(
                     for (col in 0 until board.size) {
                         GameTile(
                             value = board.cells[row][col],
+                            row = row,
+                            col = col,
                             modifier = Modifier.weight(1f)
                         )
                     }
@@ -240,20 +241,67 @@ fun GameBoard(
 @Composable
 fun GameTile(
     value: Int,
+    row: Int,
+    col: Int,
     modifier: Modifier = Modifier
 ) {
     var isNew by remember { mutableStateOf(true) }
     var isMerged by remember { mutableStateOf(false) }
+    var previousRow by remember(row) { mutableStateOf(row) }
+    var previousCol by remember(col) { mutableStateOf(col) }
     val scope = rememberCoroutineScope()
+
+    val tileSize = 96.dp // Tile size including padding
+    // Animation configuration
+    val moveAnimDuration = 180 // Base duration for movement animation
+    val newTileAnimDuration = 200 // Duration for new tile appearance
+    val mergeAnimDuration = 120 // Duration for merge animation
+    val density = LocalDensity.current
+    val tileSizePx = with(density) { tileSize.toPx() }
+
+    var targetOffsetX by remember { mutableStateOf(0f) }
+    var targetOffsetY by remember { mutableStateOf(0f) }
+
+    val offsetX by animateFloatAsState(
+        targetValue = targetOffsetX,
+        animationSpec = tween(
+            durationMillis = moveAnimDuration,
+            easing = FastOutSlowInEasing
+        )
+    )
+
+    val offsetY by animateFloatAsState(
+        targetValue = targetOffsetY,
+        animationSpec = tween(
+            durationMillis = moveAnimDuration,
+            easing = FastOutSlowInEasing
+        )
+    )
+
+    LaunchedEffect(row, col) {
+        if (row != previousRow || col != previousCol) {
+            // Calculate the offset based on position change in pixels
+            targetOffsetX = (previousCol - col) * tileSizePx
+            targetOffsetY = (previousRow - row) * tileSizePx
+
+            // Trigger animation by resetting the offset
+            kotlinx.coroutines.delay(16) // Wait for one frame
+            targetOffsetX = 0f
+            targetOffsetY = 0f
+
+            previousRow = row
+            previousCol = col
+        }
+    }
 
     LaunchedEffect(value) {
         if (value > 0) {
             isNew = true
             isMerged = true
             scope.launch {
-                kotlinx.coroutines.delay(50)
+                kotlinx.coroutines.delay(moveAnimDuration.toLong())
                 isNew = false
-                kotlinx.coroutines.delay(150)
+                kotlinx.coroutines.delay(mergeAnimDuration.toLong())
                 isMerged = false
             }
         }
@@ -261,29 +309,29 @@ fun GameTile(
 
     val scale by animateFloatAsState(
         targetValue = when {
-            isMerged -> 1.2f
-            isNew && value > 0 -> 0.8f
+            isMerged -> 1.15f
+            isNew && value > 0 -> 0.2f
             else -> 1f
         },
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessLow
-        )
-    )
-
-    val rotation by animateFloatAsState(
-        targetValue = if (isMerged) 180f else 0f,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessLow
+        animationSpec = tween(
+            durationMillis = when {
+                isNew -> newTileAnimDuration
+                isMerged -> mergeAnimDuration
+                else -> moveAnimDuration
+            },
+            easing = when {
+                isNew -> EaseOutBack
+                isMerged -> FastOutSlowInEasing
+                else -> LinearEasing
+            }
         )
     )
 
     val alpha by animateFloatAsState(
         targetValue = if (value > 0) 1f else 0f,
         animationSpec = tween(
-            durationMillis = 200,
-            easing = LinearEasing
+            durationMillis = newTileAnimDuration,
+            easing = FastOutSlowInEasing
         )
     )
 
@@ -295,8 +343,9 @@ fun GameTile(
                 .graphicsLayer {
                     scaleX = scale
                     scaleY = scale
-                    rotationZ = rotation
                     this.alpha = alpha
+                    translationX = offsetX
+                    translationY = offsetY
                 }
                 .background(getTileColor(value))
                 .padding(2.dp),
