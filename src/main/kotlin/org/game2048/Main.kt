@@ -258,49 +258,52 @@ fun GameBoard(
             },
         contentAlignment = Alignment.Center
     ) {
-        // Key overlay
-        if (lastKeyPressed != null) {
-            Box(
+        Box(modifier = Modifier.fillMaxSize()) {
+            Column(
                 modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
+                verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(80.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(Color(0xFF776E65).copy(alpha = keyOverlayAlpha * 0.3f))
-                        .border(
-                            width = 2.dp,
-                            color = Color(0xFF776E65).copy(alpha = keyOverlayAlpha * 0.5f),
-                            shape = RoundedCornerShape(12.dp)
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = lastKeyPressed!!,
-                        fontSize = 40.sp,
-                        color = Color.White.copy(alpha = keyOverlayAlpha),
-                        fontWeight = FontWeight.Bold
-                    )
+                val board = gameState.board
+                for (row in 0 until board.size) {
+                    Row(
+                        modifier = Modifier.weight(1f),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        for (col in 0 until board.size) {
+                            GameTile(
+                                value = board.cells[row][col],
+                                row = row,
+                                col = col,
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                    }
                 }
             }
-        }
-        Column(
-            modifier = Modifier.fillMaxSize(),
-            verticalArrangement = Arrangement.spacedBy(4.dp)
-        ) {
-            val board = gameState.board
-            for (row in 0 until board.size) {
-                Row(
-                    modifier = Modifier.weight(1f),
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+
+            // Key overlay
+            if (lastKeyPressed != null) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
                 ) {
-                    for (col in 0 until board.size) {
-                        GameTile(
-                            value = board.cells[row][col],
-                            row = row,
-                            col = col,
-                            modifier = Modifier.weight(1f)
+                    Box(
+                        modifier = Modifier
+                            .size(80.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(Color(0xFF776E65).copy(alpha = keyOverlayAlpha * 0.3f))
+                            .border(
+                                width = 2.dp,
+                                color = Color(0xFF776E65).copy(alpha = keyOverlayAlpha * 0.5f),
+                                shape = RoundedCornerShape(12.dp)
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = lastKeyPressed!!,
+                            fontSize = 40.sp,
+                            color = Color.White.copy(alpha = keyOverlayAlpha),
+                            fontWeight = FontWeight.Bold
                         )
                     }
                 }
