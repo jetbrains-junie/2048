@@ -3,6 +3,7 @@ package org.game2048
 import androidx.compose.desktop.ui.tooling.preview.Preview
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -133,7 +134,6 @@ fun Game() {
                             } else {
                                 StatusText("You won!", Color(0xFFF9BE02))
                             }
-                            is GameState.Lost -> StatusText("Game Over!", Color(0xFFE74C3C))
                             else -> null
                         }
                         status?.let { (text, color) ->
@@ -185,10 +185,15 @@ fun GameBoard(
     var showArrow by remember { mutableStateOf(false) }
     var lastKeyPressed by remember { mutableStateOf<String?>(null) }
     var showKeyOverlay by remember { mutableStateOf(false) }
+    var showGameOver by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
     LaunchedEffect(Unit) {
         focusRequester.requestFocus()
+    }
+
+    LaunchedEffect(gameState) {
+        showGameOver = gameState is GameState.Lost
     }
 
     var isFocused by remember { mutableStateOf(false) }
@@ -197,6 +202,11 @@ fun GameBoard(
         targetValue = if (showKeyOverlay) 1f else 0f,
         animationSpec = tween(300),
         finishedListener = { if (!showKeyOverlay) lastKeyPressed = null }
+    )
+
+    val gameOverAlpha by animateFloatAsState(
+        targetValue = if (showGameOver) 1f else 0f,
+        animationSpec = tween(200)
     )
 
     val borderAlpha by animateFloatAsState(
@@ -303,6 +313,37 @@ fun GameBoard(
                             text = lastKeyPressed!!,
                             fontSize = 40.sp,
                             color = Color.White.copy(alpha = keyOverlayAlpha),
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
+
+            // Game Over overlay
+            if (showGameOver) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color(0xFF000000).copy(alpha = gameOverAlpha * 0.5f))
+                        .clickable { showGameOver = false },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(200.dp)
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(Color(0xFFE74C3C).copy(alpha = gameOverAlpha * 0.9f))
+                            .border(
+                                width = 3.dp,
+                                color = Color.White.copy(alpha = gameOverAlpha * 0.8f),
+                                shape = RoundedCornerShape(16.dp)
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "Game Over!",
+                            fontSize = 32.sp,
+                            color = Color.White.copy(alpha = gameOverAlpha),
                             fontWeight = FontWeight.Bold
                         )
                     }

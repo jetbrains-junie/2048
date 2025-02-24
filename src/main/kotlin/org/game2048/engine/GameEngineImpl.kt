@@ -22,27 +22,23 @@ class GameEngineImpl : GameEngine {
             return currentState
         }
 
-        // Save the current state before any changes
-        val oldState = currentState
-        val oldBoard = oldState.board
-
         // Check if any moves are possible
-        if (!Move.values().any { canMoveInDirection(oldBoard, it) }) {
-            _currentState = GameState.Lost(oldBoard)
+        if (!Move.values().any { canMoveInDirection(currentState.board, it) }) {
+            _currentState = GameState.Lost(currentState.board)
             return currentState
         }
 
         // Process the move
+        val oldBoard = currentState.board
         val (newBoard, scoreIncrease) = processMove(oldBoard, move)
 
-        // Create and apply the new state
-        val newState = createNewState(newBoard, scoreIncrease)
-
-        // Only update previous state if something changed
-        if (newState != oldState) {
-            previousState = oldState
-            _currentState = newState
+        // Only update previous state if the board actually changed
+        if (!newBoard.cells.contentDeepEquals(oldBoard.cells)) {
+            previousState = currentState
         }
+
+        val newState = createNewState(newBoard, scoreIncrease)
+        _currentState = newState
 
         return newState
     }
