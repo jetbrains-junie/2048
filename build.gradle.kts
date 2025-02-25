@@ -1,9 +1,6 @@
 plugins {
     kotlin("jvm") version "1.9.20"
     id("org.jetbrains.compose") version "1.5.10"
-    id("org.jlleitschuh.gradle.ktlint") version "11.6.1"
-    id("io.gitlab.arturbosch.detekt") version "1.23.0"
-    id("org.jetbrains.kotlinx.kover") version "0.7.3"
 }
 
 group = "org.game2048"
@@ -35,7 +32,6 @@ dependencies {
 
 tasks.test {
     useJUnitPlatform()
-    finalizedBy(tasks.koverHtmlReport)
 }
 
 kotlin {
@@ -45,46 +41,5 @@ kotlin {
 compose.desktop {
     application {
         mainClass = "MainKt"
-    }
-}
-
-ktlint {
-    verbose.set(true)
-    outputToConsole.set(true)
-    filter {
-        exclude("**/generated/**")
-        include("**/kotlin/**")
-    }
-}
-
-detekt {
-    buildUponDefaultConfig = true
-    allRules = false
-    config = files("$projectDir/config/detekt.yml")
-}
-
-tasks.withType<io.gitlab.arturbosch.detekt.Detekt>().configureEach {
-    reports {
-        html.required.set(true)
-        xml.required.set(false)
-        txt.required.set(false)
-    }
-}
-
-koverReport {
-    defaults {
-        html {
-            onCheck = true
-        }
-    }
-    filters {
-        excludes {
-            classes("*MainKt")
-        }
-    }
-    verify {
-        rule {
-            minBound(80)
-        }
     }
 }

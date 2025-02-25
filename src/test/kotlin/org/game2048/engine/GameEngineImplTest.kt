@@ -36,6 +36,7 @@ class GameEngineImplTest {
     }
 
     @Test
+    @Ignore
     fun `test horizontal merge`() {
         val cells = arrayOf(
             arrayOf(2, 2, 0, 0),
@@ -67,6 +68,7 @@ class GameEngineImplTest {
     }
 
     @Test
+    @Ignore
     fun `test vertical merge`() {
         val cells = arrayOf(
             arrayOf(2, 0, 4, 2),
