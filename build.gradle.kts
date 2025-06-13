@@ -20,6 +20,13 @@ dependencies {
     implementation(compose.desktop.currentOs)
     implementation(compose.material3)
     implementation(compose.runtime)
+    
+    // Ktor server dependencies
+    implementation("io.ktor:ktor-server-core:2.3.6")
+    implementation("io.ktor:ktor-server-netty:2.3.6")
+    implementation("io.ktor:ktor-server-content-negotiation:2.3.6")
+    implementation("io.ktor:ktor-serialization-jackson:2.3.6")
+    implementation("ch.qos.logback:logback-classic:1.4.11")
 
     // Testing
     testImplementation(kotlin("test"))

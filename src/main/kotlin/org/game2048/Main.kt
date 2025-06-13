@@ -39,6 +39,7 @@ import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.AnimatedVisibility
+import org.game2048.api.CommandApi
 import org.game2048.engine.GameEngine
 import org.game2048.engine.GameEngineImpl
 import org.game2048.model.Board
@@ -46,6 +47,16 @@ import org.game2048.model.GameState
 import org.game2048.model.Move
 
 fun main() = application {
+    // Initialize and start the command API server
+    val commandApi = remember { CommandApi(port = 8080) }
+    
+    DisposableEffect(Unit) {
+        commandApi.start()
+        onDispose {
+            commandApi.stop()
+        }
+    }
+    
     val windowState = remember {
         WindowState(
             size = DpSize(550.dp, 700.dp)
@@ -53,7 +64,10 @@ fun main() = application {
     }
 
     Window(
-        onCloseRequest = ::exitApplication,
+        onCloseRequest = {
+            commandApi.stop()
+            exitApplication()
+        },
         title = "2048 Game",
         state = windowState,
         resizable = true,
